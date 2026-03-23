@@ -54,7 +54,11 @@ export function useWorkout() {
   const persist = useCallback((updated: WorkoutLog) => {
     if (saveTimeout.current) clearTimeout(saveTimeout.current);
     saveTimeout.current = setTimeout(() => {
-      const { id, ...data } = updated;
+      const { id, ...rest } = updated;
+      // Firestore rejects undefined values — strip them
+      const data = Object.fromEntries(
+        Object.entries(rest).filter(([, v]) => v !== undefined),
+      );
       setDocument("workoutLogs", id, data);
     }, 500);
   }, []);
@@ -80,7 +84,9 @@ export function useWorkout() {
         const updated: WorkoutLog = {
           ...prev,
           exercises,
-          completedAt: allDone ? new Date().toISOString() : undefined,
+          ...(allDone
+            ? { completedAt: new Date().toISOString() }
+            : { completedAt: undefined }),
         };
 
         persist(updated);

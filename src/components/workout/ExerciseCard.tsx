@@ -60,8 +60,16 @@ export function ExerciseCard({
         }`}
       >
         {/* Header — always visible */}
-        <button
+        <div
+          role="button"
+          tabIndex={0}
           onClick={() => setExpanded(!expanded)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              setExpanded(!expanded);
+            }
+          }}
           className="w-full flex items-center gap-3 p-4 text-left cursor-pointer"
         >
           <span className="w-7 h-7 rounded-lg bg-(--bg-tertiary) flex items-center justify-center text-xs font-bold text-(--text-secondary) shrink-0">
@@ -104,7 +112,7 @@ export function ExerciseCard({
               }`}
             />
           </div>
-        </button>
+        </div>
 
         {/* Body — expanded */}
         {expanded && (
