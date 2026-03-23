@@ -1,12 +1,20 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { Card } from "@/components/ui/Card";
 import { WalkingForm } from "@/components/walking/WalkingForm";
-import { WalkingChart } from "@/components/walking/WalkingChart";
 import { useWalking } from "@/hooks/useWalking";
 import { Footprints, Route, Clock, Gauge } from "lucide-react";
 import { ProgressBar } from "@/components/ui/ProgressBar";
+
+const WalkingChart = dynamic(
+  () =>
+    import("@/components/walking/WalkingChart").then((m) => ({
+      default: m.WalkingChart,
+    })),
+  { ssr: false, loading: () => <div className="skeleton h-72 w-full" /> },
+);
 
 function formatMinToHours(min: number): string {
   const h = Math.floor(min / 60);

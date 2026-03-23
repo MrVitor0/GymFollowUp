@@ -32,7 +32,7 @@ export function VideoModal({ videoUrl, isOpen, onClose }: VideoModalProps) {
       isOpen={isOpen}
       onClose={onClose}
       title="Tutorial"
-      className="max-w-2xl"
+      className="max-w-2xl max-sm:max-w-none max-sm:h-full max-sm:rounded-none max-sm:flex max-sm:flex-col max-sm:justify-center"
     >
       <div className="relative w-full aspect-video rounded-xl overflow-hidden bg-black">
         <iframe

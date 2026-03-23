@@ -1,12 +1,17 @@
 "use client";
 
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import { ChevronDown, Play, Lightbulb } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { SetLogger } from "./SetLogger";
-import { VideoModal } from "./VideoModal";
 import type { Exercise, ExerciseLog, SetLog } from "@/types/models";
+
+const VideoModal = dynamic(
+  () => import("./VideoModal").then((m) => ({ default: m.VideoModal })),
+  { ssr: false },
+);
 
 interface ExerciseCardProps {
   exercise: Omit<Exercise, "id">;
