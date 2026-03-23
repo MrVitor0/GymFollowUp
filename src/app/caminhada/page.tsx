@@ -1,26 +1,26 @@
 import { PageContainer } from "@/components/layout/PageContainer";
 import { Card } from "@/components/ui/Card";
-import { Dumbbell } from "lucide-react";
+import { Footprints } from "lucide-react";
 
-export default function Home() {
+export default function CaminhadaPage() {
   return (
     <PageContainer>
       <div className="flex flex-col gap-6">
         <div>
-          <h1 className="text-3xl md:text-4xl font-bold">Treino do Dia</h1>
+          <h1 className="text-3xl md:text-4xl font-bold">Caminhada</h1>
           <p className="text-(--text-secondary) mt-1">
-            Acompanhe sua sessão de treino
+            Registre e acompanhe sua caminhada diária
           </p>
         </div>
 
         <Card className="p-6 flex flex-col items-center gap-4 text-center">
           <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 flex items-center justify-center">
-            <Dumbbell size={24} className="text-indigo-400" />
+            <Footprints size={24} className="text-indigo-400" />
           </div>
           <div>
             <h2 className="text-lg font-semibold">Em breve</h2>
             <p className="text-sm text-(--text-secondary) mt-1">
-              O treino do dia será exibido aqui com log de séries
+              O log de caminhada será exibido aqui
             </p>
           </div>
         </Card>
