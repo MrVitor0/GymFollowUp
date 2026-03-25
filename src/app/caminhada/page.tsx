@@ -1,12 +1,26 @@
 "use client";
 
+import { useState } from "react";
 import dynamic from "next/dynamic";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { Card } from "@/components/ui/Card";
+import { Input } from "@/components/ui/Input";
+import { Button } from "@/components/ui/Button";
+import { Modal } from "@/components/ui/Modal";
 import { WalkingForm } from "@/components/walking/WalkingForm";
 import { useWalking } from "@/hooks/useWalking";
-import { Footprints, Route, Clock, Gauge } from "lucide-react";
+import { calcAvgSpeed } from "@/lib/utils";
+import {
+  Footprints,
+  Route,
+  Clock,
+  Gauge,
+  Pencil,
+  Save,
+  Check,
+} from "lucide-react";
 import { ProgressBar } from "@/components/ui/ProgressBar";
+import type { WalkingLog } from "@/types/models";
 
 const WalkingChart = dynamic(
   () =>
@@ -29,9 +43,47 @@ export default function CaminhadaPage() {
     recentLogs,
     monthStats,
     saveLog,
+    saveLogForDate,
     isLoading,
     isSaving,
   } = useWalking();
+
+  const [editingLog, setEditingLog] = useState<WalkingLog | null>(null);
+  const [editDistance, setEditDistance] = useState("");
+  const [editDuration, setEditDuration] = useState("");
+  const [editNotes, setEditNotes] = useState("");
+  const [editSaved, setEditSaved] = useState(false);
+
+  function openEdit(log: WalkingLog) {
+    setEditingLog(log);
+    setEditDistance(String(log.distanceKm));
+    setEditDuration(String(log.durationMin));
+    setEditNotes(log.notes ?? "");
+    setEditSaved(false);
+  }
+
+  async function handleEditSave(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingLog) return;
+    const distNum = parseFloat(editDistance) || 0;
+    const durNum = parseInt(editDuration) || 0;
+    if (distNum <= 0 || durNum <= 0) return;
+    await saveLogForDate(editingLog.date, {
+      distanceKm: distNum,
+      durationMin: durNum,
+      notes: editNotes || undefined,
+    });
+    setEditSaved(true);
+    setTimeout(() => {
+      setEditingLog(null);
+      setEditSaved(false);
+    }, 800);
+  }
+
+  const editDistNum = parseFloat(editDistance) || 0;
+  const editDurNum = parseInt(editDuration) || 0;
+  const editAvgSpeed = calcAvgSpeed(editDistNum, editDurNum);
+  const editIsValid = editDistNum > 0 && editDurNum > 0;
 
   const monthName = new Date().toLocaleString("pt-BR", { month: "long" });
 
@@ -123,6 +175,7 @@ export default function CaminhadaPage() {
                     <th className="text-right px-4 py-2 font-medium">Dist.</th>
                     <th className="text-right px-4 py-2 font-medium">Dur.</th>
                     <th className="text-right px-4 py-2 font-medium">Vel.</th>
+                    <th className="w-8" />
                   </tr>
                 </thead>
                 <tbody>
@@ -149,6 +202,14 @@ export default function CaminhadaPage() {
                       <td className="text-right px-4 py-2 font-mono text-indigo-400">
                         {log.avgSpeedKmh ?? "–"}
                       </td>
+                      <td className="px-2 py-2">
+                        <button
+                          onClick={() => openEdit(log)}
+                          className="p-1.5 rounded-lg text-(--text-muted) hover:text-indigo-400 hover:bg-indigo-500/10 transition-colors cursor-pointer"
+                        >
+                          <Pencil size={12} />
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -156,6 +217,81 @@ export default function CaminhadaPage() {
             </div>
           </Card>
         )}
+
+        {/* Modal de Edição */}
+        <Modal
+          isOpen={!!editingLog}
+          onClose={() => setEditingLog(null)}
+          title={
+            editingLog
+              ? `Editar — ${new Date(editingLog.date + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "long" })}`
+              : ""
+          }
+        >
+          <form onSubmit={handleEditSave} className="flex flex-col gap-4">
+            <div className="grid grid-cols-2 gap-3">
+              <Input
+                label="Distância (km)"
+                id="edit-distance"
+                type="number"
+                inputMode="decimal"
+                step="0.1"
+                placeholder="8.5"
+                value={editDistance}
+                onChange={(e) => setEditDistance(e.target.value)}
+              />
+              <Input
+                label="Duração (min)"
+                id="edit-duration"
+                type="number"
+                inputMode="numeric"
+                placeholder="120"
+                value={editDuration}
+                onChange={(e) => setEditDuration(e.target.value)}
+              />
+            </div>
+
+            {editDistNum > 0 && editDurNum > 0 && (
+              <p className="text-sm text-(--text-secondary)">
+                Vel. média:{" "}
+                <span className="text-indigo-400 font-medium">
+                  {editAvgSpeed} km/h
+                </span>
+              </p>
+            )}
+
+            <div className="flex flex-col gap-1.5">
+              <label
+                htmlFor="edit-notes"
+                className="text-sm font-medium text-(--text-secondary)"
+              >
+                Observações (opcional)
+              </label>
+              <textarea
+                id="edit-notes"
+                placeholder="Ex: caminhada leve, inclinação 5%..."
+                value={editNotes}
+                onChange={(e) => setEditNotes(e.target.value)}
+                rows={2}
+                className="w-full bg-(--bg-tertiary) border border-(--border) rounded-xl px-4 py-2.5 text-(--text-primary) placeholder-(--text-muted) focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all duration-200 resize-none"
+              />
+            </div>
+
+            <Button type="submit" disabled={!editIsValid || isSaving}>
+              {editSaved ? (
+                <>
+                  <Check size={16} /> Salvo!
+                </>
+              ) : isSaving ? (
+                "Salvando..."
+              ) : (
+                <>
+                  <Save size={16} /> Salvar Alterações
+                </>
+              )}
+            </Button>
+          </form>
+        </Modal>
       </div>
     </PageContainer>
   );

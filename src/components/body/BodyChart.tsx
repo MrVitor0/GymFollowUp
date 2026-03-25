@@ -3,12 +3,13 @@
 import { useState } from "react";
 import {
   ResponsiveContainer,
-  LineChart,
-  Line,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   Tooltip,
   CartesianGrid,
+  ReferenceLine,
 } from "recharts";
 import { Card } from "@/components/ui/Card";
 import type { BodyLog } from "@/types/models";
@@ -24,9 +25,10 @@ const METRICS = [
 
 interface BodyChartProps {
   logs: BodyLog[];
+  title?: string;
 }
 
-export function BodyChart({ logs }: BodyChartProps) {
+export function BodyChart({ logs, title = "Evolução" }: BodyChartProps) {
   const [activeMetric, setActiveMetric] = useState(0);
   const metric = METRICS[activeMetric];
 
@@ -38,9 +40,16 @@ export function BodyChart({ logs }: BodyChartProps) {
     value: (log as unknown as Record<string, number>)[metric.key] ?? 0,
   }));
 
+  const values = data.map((d) => d.value).filter((v) => v > 0);
+  const avg =
+    values.length > 0
+      ? Math.round((values.reduce((a, b) => a + b, 0) / values.length) * 10) /
+        10
+      : 0;
+
   return (
     <Card hover={false} className="p-5">
-      <h2 className="text-lg font-semibold mb-4">Evolução</h2>
+      <h2 className="text-lg font-semibold mb-4">{title}</h2>
 
       {/* Tabs de métrica */}
       <div className="flex gap-1.5 mb-4 overflow-x-auto pb-1">
@@ -68,12 +77,24 @@ export function BodyChart({ logs }: BodyChartProps) {
         ))}
       </div>
 
-      <div className="h-56 md:h-64">
+      <div className="h-56 md:h-72">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart
+          <AreaChart
             data={data}
             margin={{ top: 5, right: 5, left: -20, bottom: 0 }}
           >
+            <defs>
+              <linearGradient
+                id={`bodyGrad-${metric.key}`}
+                x1="0"
+                y1="0"
+                x2="0"
+                y2="1"
+              >
+                <stop offset="5%" stopColor={metric.color} stopOpacity={0.3} />
+                <stop offset="95%" stopColor={metric.color} stopOpacity={0} />
+              </linearGradient>
+            </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="#2a2a3e" />
             <XAxis
               dataKey="date"
@@ -101,15 +122,30 @@ export function BodyChart({ logs }: BodyChartProps) {
                 metric.label,
               ]}
             />
-            <Line
+            {avg > 0 && (
+              <ReferenceLine
+                y={avg}
+                stroke={metric.color}
+                strokeDasharray="4 4"
+                strokeOpacity={0.4}
+                label={{
+                  value: `Média ${avg}${metric.unit || ""}`,
+                  fill: metric.color,
+                  fontSize: 10,
+                  position: "right",
+                }}
+              />
+            )}
+            <Area
               type="monotone"
               dataKey="value"
               stroke={metric.color}
               strokeWidth={2}
+              fill={`url(#bodyGrad-${metric.key})`}
               dot={{ fill: metric.color, r: 3, strokeWidth: 0 }}
               activeDot={{ fill: metric.color, r: 5, strokeWidth: 0 }}
             />
-          </LineChart>
+          </AreaChart>
         </ResponsiveContainer>
       </div>
     </Card>

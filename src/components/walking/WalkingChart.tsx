@@ -29,7 +29,7 @@ function buildChartData(logs: WalkingLog[]) {
   for (let i = 29; i >= 0; i--) {
     const d = new Date(now);
     d.setDate(d.getDate() - i);
-    const key = d.toISOString().split("T")[0];
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
     const label = `${d.getDate()}/${d.getMonth() + 1}`;
     data.push({ day: label, km: map.get(key) ?? 0 });
   }

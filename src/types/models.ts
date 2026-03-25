@@ -51,10 +51,21 @@ export interface BodyLog {
   water: number;
   protein: number;
   bmi: number;
-  salt?: number;
+  // Campos extras do RelaxFit
+  leanBodyMass?: number;
+  subcutaneousFat?: number;
   visceralFat?: number;
+  skeletalMuscle?: number;
+  muscleMass?: number;
   boneMass?: number;
-  metabolicAge?: number;
   bmr?: number;
+  bodyAge?: number;
+  fatMass?: number;
+  waterMass?: number;
+  proteinMass?: number;
+  idealWeight?: number;
+  obesityLevel?: string;
+  bodyType?: string;
+  measuredAt?: string;
   rawJson?: Record<string, unknown>;
 }

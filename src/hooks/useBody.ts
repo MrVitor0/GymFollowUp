@@ -77,32 +77,48 @@ export function useBody() {
   const latestLog = logs[0] ?? null;
   const previousLog = logs[1] ?? null;
 
-  const saveLog = useCallback(async (data: Partial<BodyLog>) => {
-    const dateId = today();
-    const logData = {
-      date: dateId,
-      weight: data.weight ?? 0,
-      bodyFat: data.bodyFat ?? 0,
-      muscle: data.muscle ?? 0,
-      water: data.water ?? 0,
-      protein: data.protein ?? 0,
-      bmi: data.bmi ?? 0,
-      ...(data.salt != null && { salt: data.salt }),
-      ...(data.visceralFat != null && { visceralFat: data.visceralFat }),
-      ...(data.boneMass != null && { boneMass: data.boneMass }),
-      ...(data.metabolicAge != null && { metabolicAge: data.metabolicAge }),
-      ...(data.bmr != null && { bmr: data.bmr }),
-      ...(data.rawJson && { rawJson: data.rawJson }),
-    };
+  const saveLog = useCallback(
+    async (data: Partial<BodyLog>, dateOverride?: string) => {
+      const dateId = dateOverride ?? today();
+      const { rawJson, ...rest } = data;
+      const logData = {
+        date: dateId,
+        weight: rest.weight ?? 0,
+        bodyFat: rest.bodyFat ?? 0,
+        muscle: rest.muscle ?? 0,
+        water: rest.water ?? 0,
+        protein: rest.protein ?? 0,
+        bmi: rest.bmi ?? 0,
+        ...Object.fromEntries(
+          Object.entries(rest).filter(
+            ([k, v]) =>
+              v != null &&
+              ![
+                "date",
+                "weight",
+                "bodyFat",
+                "muscle",
+                "water",
+                "protein",
+                "bmi",
+              ].includes(k),
+          ),
+        ),
+        ...(rawJson && { rawJson }),
+      };
 
-    await setDocument("bodyLogs", dateId, logData);
+      await setDocument("bodyLogs", dateId, logData);
 
-    const saved: BodyLog = { id: dateId, ...logData };
-    setLogs((prev) => {
-      const filtered = prev.filter((l) => l.id !== dateId);
-      return [saved, ...filtered].sort((a, b) => b.date.localeCompare(a.date));
-    });
-  }, []);
+      const saved: BodyLog = { id: dateId, ...logData };
+      setLogs((prev) => {
+        const filtered = prev.filter((l) => l.id !== dateId);
+        return [saved, ...filtered].sort((a, b) =>
+          b.date.localeCompare(a.date),
+        );
+      });
+    },
+    [],
+  );
 
   return { latestLog, previousLog, logs, saveLog, isLoading };
 }

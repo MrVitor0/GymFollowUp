@@ -16,8 +16,16 @@ const FILTER_OPTIONS = [
 ];
 
 export default function HistoricoPage() {
-  const { logs, hasMore, filter, setFilter, stats, isLoading, loadMore } =
-    useHistory();
+  const {
+    logs,
+    hasMore,
+    filter,
+    setFilter,
+    stats,
+    isLoading,
+    loadMore,
+    updateLog,
+  } = useHistory();
 
   return (
     <PageContainer>
@@ -101,6 +109,7 @@ export default function HistoricoPage() {
                 key={log.id}
                 log={log}
                 previousLog={previousLog}
+                onUpdate={updateLog}
               />
             );
           })}

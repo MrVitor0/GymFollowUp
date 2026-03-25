@@ -71,6 +71,36 @@ export function useWalking() {
     [dateId],
   );
 
+  const saveLogForDate = useCallback(
+    async (
+      targetDate: string,
+      data: { distanceKm: number; durationMin: number; notes?: string },
+    ) => {
+      setIsSaving(true);
+      const avgSpeedKmh = calcAvgSpeed(data.distanceKm, data.durationMin);
+      const logData = {
+        date: targetDate,
+        distanceKm: data.distanceKm,
+        durationMin: data.durationMin,
+        avgSpeedKmh,
+        notes: data.notes ?? "",
+      };
+
+      await setDocument("walkingLogs", targetDate, logData);
+
+      const saved: WalkingLog = { id: targetDate, ...logData };
+      if (targetDate === dateId) setTodayLog(saved);
+      setMonthLogs((prev) => {
+        const filtered = prev.filter((l) => l.id !== targetDate);
+        return [saved, ...filtered].sort((a, b) =>
+          b.date.localeCompare(a.date),
+        );
+      });
+      setIsSaving(false);
+    },
+    [dateId],
+  );
+
   const currentMonthLogs = monthLogs.filter((l) => l.date >= monthStart);
   const daysInMonth = new Date(
     now.getFullYear(),
@@ -116,6 +146,7 @@ export function useWalking() {
     recentLogs,
     monthStats,
     saveLog,
+    saveLogForDate,
     isLoading,
     isSaving,
   };

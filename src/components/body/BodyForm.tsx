@@ -4,16 +4,42 @@ import { useState, useRef } from "react";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
+import { ProgressBar } from "@/components/ui/ProgressBar";
 import { parseRelaxFitJson } from "@/hooks/useBody";
-import { Upload, Save, Check, FileJson, X } from "lucide-react";
+import { parseRelaxFitImage } from "@/lib/ocr";
+import { Save, Check, FileJson, X, ImageIcon } from "lucide-react";
 import type { BodyLog } from "@/types/models";
 
 interface BodyFormProps {
   latestLog: BodyLog | null;
-  onSave: (data: Partial<BodyLog>) => Promise<void>;
+  onSave: (data: Partial<BodyLog>, dateOverride?: string) => Promise<void>;
+  embedded?: boolean;
 }
 
-const METRIC_FIELDS = [
+const PREVIEW_FIELDS = [
+  { key: "weight", label: "Peso (kg)" },
+  { key: "bodyFat", label: "Gordura (%)" },
+  { key: "muscle", label: "Taxa Muscular (%)" },
+  { key: "water", label: "Água Corporal (%)" },
+  { key: "protein", label: "Proteína (%)" },
+  { key: "bmi", label: "IMC" },
+  { key: "leanBodyMass", label: "Massa Magra (kg)" },
+  { key: "subcutaneousFat", label: "Gord. Subcutânea (%)" },
+  { key: "visceralFat", label: "Gordura Visceral" },
+  { key: "skeletalMuscle", label: "Músc. Esquelético (%)" },
+  { key: "muscleMass", label: "Massa Muscular (kg)" },
+  { key: "boneMass", label: "Massa Óssea (kg)" },
+  { key: "bmr", label: "TMB (kcal)" },
+  { key: "bodyAge", label: "Idade do Corpo" },
+  { key: "fatMass", label: "Massa Gorda (kg)" },
+  { key: "waterMass", label: "Peso da Água (kg)" },
+  { key: "proteinMass", label: "Massa Proteína (kg)" },
+  { key: "idealWeight", label: "Peso Ideal (kg)" },
+  { key: "obesityLevel", label: "Nível Obesidade" },
+  { key: "bodyType", label: "Tipo de Corpo" },
+] as const;
+
+const MANUAL_FIELDS = [
   { key: "weight", label: "Peso (kg)", placeholder: "85.4" },
   { key: "bodyFat", label: "Gordura (%)", placeholder: "22.1" },
   { key: "muscle", label: "Músculo (%)", placeholder: "42.3" },
@@ -22,11 +48,19 @@ const METRIC_FIELDS = [
   { key: "bmi", label: "IMC", placeholder: "26.2" },
 ] as const;
 
-export function BodyForm({ latestLog, onSave }: BodyFormProps) {
-  const [mode, setMode] = useState<"import" | "manual">("import");
-  const [preview, setPreview] = useState<Partial<BodyLog> | null>(null);
+export function BodyForm({
+  latestLog,
+  onSave,
+  embedded = false,
+}: BodyFormProps) {
+  const [mode, setMode] = useState<"image" | "json" | "manual">("image");
+  const [preview, setPreview] = useState<
+    (Partial<BodyLog> & { parsedDate?: string }) | null
+  >(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [ocrProgress, setOcrProgress] = useState(0);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -47,32 +81,57 @@ export function BodyForm({ latestLog, onSave }: BodyFormProps) {
     setFields((prev) => ({ ...prev, [key]: value }));
   }
 
-  function handleFile(file: File) {
-    if (!file.name.endsWith(".json")) {
-      setError("Apenas arquivos .json são aceitos");
-      return;
-    }
+  async function handleFile(file: File) {
     setError("");
-    const reader = new FileReader();
-    reader.onload = (e) => {
+
+    if (file.type.startsWith("image/")) {
+      setIsProcessing(true);
+      setOcrProgress(0);
       try {
-        const json = JSON.parse(e.target?.result as string);
-        if (typeof json !== "object" || json === null) {
-          setError("JSON inválido");
-          return;
-        }
-        const parsed = parseRelaxFitJson(json as Record<string, unknown>);
-        parsed.rawJson = json as Record<string, unknown>;
-        if (!parsed.weight) {
-          setError("Campo 'weight/peso' não encontrado no JSON");
+        const parsed = await parseRelaxFitImage(file, setOcrProgress);
+        const fieldCount = Object.keys(parsed).filter(
+          (k) => k !== "parsedDate" && k !== "measuredAt",
+        ).length;
+        if (fieldCount === 0) {
+          setError(
+            "Não foi possível extrair dados da imagem. Tente outra captura.",
+          );
+          setIsProcessing(false);
           return;
         }
         setPreview(parsed);
       } catch {
-        setError("Erro ao ler o arquivo JSON");
+        setError("Erro ao processar a imagem");
       }
-    };
-    reader.readAsText(file);
+      setIsProcessing(false);
+      return;
+    }
+
+    if (file.name.endsWith(".json")) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const json = JSON.parse(e.target?.result as string);
+          if (typeof json !== "object" || json === null) {
+            setError("JSON inválido");
+            return;
+          }
+          const parsed = parseRelaxFitJson(json as Record<string, unknown>);
+          parsed.rawJson = json as Record<string, unknown>;
+          if (!parsed.weight) {
+            setError("Campo 'weight/peso' não encontrado no JSON");
+            return;
+          }
+          setPreview(parsed);
+        } catch {
+          setError("Erro ao ler o arquivo JSON");
+        }
+      };
+      reader.readAsText(file);
+      return;
+    }
+
+    setError("Formato não suportado. Use imagem (PNG/JPG) ou JSON.");
   }
 
   function handleDrop(e: React.DragEvent) {
@@ -91,7 +150,8 @@ export function BodyForm({ latestLog, onSave }: BodyFormProps) {
   async function handleSavePreview() {
     if (!preview) return;
     setIsSaving(true);
-    await onSave(preview);
+    const { parsedDate, ...data } = preview;
+    await onSave(data, parsedDate);
     setIsSaving(false);
     setSaved(true);
     setPreview(null);
@@ -101,7 +161,7 @@ export function BodyForm({ latestLog, onSave }: BodyFormProps) {
   async function handleSaveManual(e: React.FormEvent) {
     e.preventDefault();
     const data: Partial<BodyLog> = {};
-    for (const { key } of METRIC_FIELDS) {
+    for (const { key } of MANUAL_FIELDS) {
       const val = parseFloat(fields[key] ?? "");
       if (!isNaN(val) && val > 0) {
         (data as Record<string, number>)[key] = val;
@@ -116,31 +176,45 @@ export function BodyForm({ latestLog, onSave }: BodyFormProps) {
   }
 
   const isValidManual = parseFloat(fields.weight ?? "") > 0;
+  const acceptByMode = mode === "image" ? "image/*" : ".json";
+  const previewFields = PREVIEW_FIELDS.filter(
+    ({ key }) => (preview as Record<string, unknown> | null)?.[key] != null,
+  );
 
-  return (
-    <Card hover={false} className="p-5">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold">
-          {preview ? "Preview dos Dados" : "Registrar Medição"}
-        </h2>
-        {!preview && (
+  const inner = (
+    <>
+      <div
+        className={`flex items-center ${embedded ? "justify-end" : "justify-between"} mb-4`}
+      >
+        {!embedded && (
+          <h2 className="text-lg font-semibold">
+            {preview ? "Preview dos Dados" : "Registrar Medição"}
+          </h2>
+        )}
+        {!preview && !isProcessing && (
           <div className="flex gap-1">
-            {(["import", "manual"] as const).map((m) => (
+            {(
+              [
+                { id: "image", icon: <ImageIcon size={12} />, label: "Imagem" },
+                { id: "json", icon: <FileJson size={12} />, label: "JSON" },
+                { id: "manual", icon: null, label: "Manual" },
+              ] as const
+            ).map(({ id, icon, label }) => (
               <button
-                key={m}
-                onClick={() => setMode(m)}
+                key={id}
+                onClick={() => setMode(id)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
-                  mode === m
+                  mode === id
                     ? "bg-indigo-500/20 text-indigo-400"
                     : "text-(--text-muted) hover:text-(--text-secondary)"
                 }`}
               >
-                {m === "import" ? (
+                {icon ? (
                   <span className="flex items-center gap-1">
-                    <Upload size={12} /> JSON
+                    {icon} {label}
                   </span>
                 ) : (
-                  "Manual"
+                  label
                 )}
               </button>
             ))}
@@ -151,8 +225,17 @@ export function BodyForm({ latestLog, onSave }: BodyFormProps) {
       {/* Preview de dados importados */}
       {preview && (
         <div className="flex flex-col gap-4 animate-fade-slide-up">
+          {preview.parsedDate && (
+            <p className="text-xs text-(--text-muted) text-center">
+              Data detectada:{" "}
+              <span className="font-medium text-(--text-secondary)">
+                {preview.parsedDate}
+              </span>
+              {preview.measuredAt && ` às ${preview.measuredAt}`}
+            </p>
+          )}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {METRIC_FIELDS.map(({ key, label }) => {
+            {previewFields.map(({ key, label }) => {
               const val = (preview as Record<string, unknown>)[key];
               return (
                 <div
@@ -198,8 +281,21 @@ export function BodyForm({ latestLog, onSave }: BodyFormProps) {
         </div>
       )}
 
-      {/* Modo import: drag & drop */}
-      {!preview && mode === "import" && (
+      {/* OCR em progresso */}
+      {isProcessing && (
+        <div className="flex flex-col gap-3 py-4 animate-fade-slide-up">
+          <p className="text-sm text-(--text-secondary) text-center">
+            Processando imagem...
+          </p>
+          <ProgressBar value={ocrProgress} max={100} />
+          <p className="text-xs text-(--text-muted) text-center">
+            {Math.round(ocrProgress)}%
+          </p>
+        </div>
+      )}
+
+      {/* Modo imagem ou JSON: drag & drop */}
+      {!preview && !isProcessing && (mode === "image" || mode === "json") && (
         <div className="flex flex-col gap-3">
           <div
             onDragOver={(e) => {
@@ -218,9 +314,21 @@ export function BodyForm({ latestLog, onSave }: BodyFormProps) {
               }
             `}
           >
-            <FileJson size={32} className="mx-auto text-(--text-muted) mb-3" />
+            {mode === "image" ? (
+              <ImageIcon
+                size={32}
+                className="mx-auto text-(--text-muted) mb-3"
+              />
+            ) : (
+              <FileJson
+                size={32}
+                className="mx-auto text-(--text-muted) mb-3"
+              />
+            )}
             <p className="text-sm text-(--text-secondary)">
-              Arraste um arquivo JSON aqui
+              {mode === "image"
+                ? "Arraste uma captura do Relax Fit aqui"
+                : "Arraste um arquivo JSON aqui"}
             </p>
             <p className="text-xs text-(--text-muted) mt-1">
               ou clique para selecionar
@@ -229,22 +337,24 @@ export function BodyForm({ latestLog, onSave }: BodyFormProps) {
           <input
             ref={fileInputRef}
             type="file"
-            accept=".json"
+            accept={acceptByMode}
             onChange={handleFileInput}
             className="hidden"
           />
           {error && <p className="text-xs text-red-400">{error}</p>}
           <p className="text-xs text-(--text-muted) text-center">
-            Compatível com JSON da Relax Fit
+            {mode === "image"
+              ? "Compatível com capturas de tela do Relax Fit"
+              : "Compatível com JSON da Relax Fit"}
           </p>
         </div>
       )}
 
       {/* Modo manual */}
-      {!preview && mode === "manual" && (
+      {!preview && !isProcessing && mode === "manual" && (
         <form onSubmit={handleSaveManual} className="flex flex-col gap-4">
           <div className="grid grid-cols-2 gap-3">
-            {METRIC_FIELDS.map(({ key, label, placeholder }) => (
+            {MANUAL_FIELDS.map(({ key, label, placeholder }) => (
               <Input
                 key={key}
                 label={label}
@@ -273,6 +383,14 @@ export function BodyForm({ latestLog, onSave }: BodyFormProps) {
           </Button>
         </form>
       )}
+    </>
+  );
+
+  if (embedded) return inner;
+
+  return (
+    <Card hover={false} className="p-5">
+      {inner}
     </Card>
   );
 }

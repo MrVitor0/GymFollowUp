@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { queryDocuments } from "@/lib/firestore";
+import { queryDocuments, setDocument } from "@/lib/firestore";
 import type { WorkoutLog } from "@/types/models";
 
 interface HistoryStats {
@@ -21,7 +21,7 @@ function calcStreak(logs: WorkoutLog[]): number {
   for (let i = 0; i < 365; i++) {
     const d = new Date(today);
     d.setDate(d.getDate() - i);
-    const dateStr = d.toISOString().split("T")[0];
+    const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
     const hasLog = logs.some((l) => l.date === dateStr && l.completedAt);
     // Domingo pula (dia de descanso)
     if (d.getDay() === 0) continue;
@@ -98,6 +98,15 @@ export function useHistory() {
     };
   }, [logs]);
 
+  const updateLog = useCallback(async (updated: WorkoutLog) => {
+    const { id, ...rest } = updated;
+    const data = Object.fromEntries(
+      Object.entries(rest).filter(([, v]) => v !== undefined),
+    );
+    await setDocument("workoutLogs", id, data);
+    setLogs((prev) => prev.map((l) => (l.id === id ? updated : l)));
+  }, []);
+
   return {
     logs: logs.slice(0, displayCount),
     hasMore: logs.length > displayCount,
@@ -106,5 +115,6 @@ export function useHistory() {
     stats,
     isLoading,
     loadMore,
+    updateLog,
   };
 }
