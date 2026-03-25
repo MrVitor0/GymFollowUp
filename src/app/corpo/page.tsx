@@ -26,6 +26,7 @@ import {
   Check,
   Plus,
   ArrowRight,
+  Trash2,
 } from "lucide-react";
 import type { BodyLog, WalkingLog, WorkoutLog } from "@/types/models";
 
@@ -160,7 +161,7 @@ function getTrend(
 /* ── Page ──────────────────────────────────────────────── */
 
 export default function CorpoPage() {
-  const { latestLog, logs, saveLog, isLoading } = useBody();
+  const { latestLog, logs, saveLog, deleteLog, isLoading } = useBody();
 
   const [period, setPeriod] = useState<Period>("30d");
   const [showForm, setShowForm] = useState(false);
@@ -290,7 +291,7 @@ export default function CorpoPage() {
         </div>
 
         {/* Period Selector */}
-        <div className="flex gap-1.5 overflow-x-auto pb-1">
+        <div className="flex gap-1.5 overflow-x-auto scrollbar-hide">
           {PERIODS.map(({ id, label }) => (
             <button
               key={id}
@@ -478,7 +479,7 @@ export default function CorpoPage() {
                     <th className="text-right px-3 py-2 font-medium">Musc.</th>
                     <th className="text-right px-3 py-2 font-medium">Água</th>
                     <th className="text-right px-3 py-2 font-medium">IMC</th>
-                    <th className="w-8" />
+                    <th className="w-16" />
                   </tr>
                 </thead>
                 <tbody>
@@ -509,12 +510,23 @@ export default function CorpoPage() {
                         {log.bmi}
                       </td>
                       <td className="px-2 py-2">
-                        <button
-                          onClick={() => openEdit(log)}
-                          className="p-1.5 rounded-lg text-(--text-muted) hover:text-indigo-400 hover:bg-indigo-500/10 transition-colors cursor-pointer"
-                        >
-                          <Pencil size={12} />
-                        </button>
+                        <div className="flex items-center gap-0.5">
+                          <button
+                            onClick={() => openEdit(log)}
+                            className="p-1.5 rounded-lg text-(--text-muted) hover:text-indigo-400 hover:bg-indigo-500/10 transition-colors cursor-pointer"
+                          >
+                            <Pencil size={12} />
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (confirm("Apagar este registro?"))
+                                deleteLog(log.id);
+                            }}
+                            className="p-1.5 rounded-lg text-(--text-muted) hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}

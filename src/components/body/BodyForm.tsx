@@ -234,18 +234,20 @@ export function BodyForm({
               {preview.measuredAt && ` às ${preview.measuredAt}`}
             </p>
           )}
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-64 overflow-y-auto scrollbar-hide">
             {previewFields.map(({ key, label }) => {
               const val = (preview as Record<string, unknown>)[key];
               return (
                 <div
                   key={key}
-                  className="bg-(--bg-tertiary)/50 rounded-xl p-3 text-center"
+                  className="bg-(--bg-tertiary)/50 rounded-xl p-2 text-center"
                 >
-                  <p className="text-lg font-bold">
+                  <p className="text-sm font-bold">
                     {val != null ? String(val) : "–"}
                   </p>
-                  <p className="text-[10px] text-(--text-muted)">{label}</p>
+                  <p className="text-[9px] text-(--text-muted) leading-tight">
+                    {label}
+                  </p>
                 </div>
               );
             })}

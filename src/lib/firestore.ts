@@ -4,6 +4,7 @@ import {
   getDoc,
   getDocs,
   setDoc,
+  deleteDoc,
   query,
   orderBy,
   limit,
@@ -27,6 +28,13 @@ export async function setDocument(
   data: Record<string, unknown>,
 ): Promise<void> {
   await setDoc(doc(db, collectionName, docId), data, { merge: true });
+}
+
+export async function deleteDocument(
+  collectionName: string,
+  docId: string,
+): Promise<void> {
+  await deleteDoc(doc(db, collectionName, docId));
 }
 
 export async function queryDocuments<T>(

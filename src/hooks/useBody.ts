@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { setDocument, queryDocuments } from "@/lib/firestore";
+import { setDocument, deleteDocument, queryDocuments } from "@/lib/firestore";
 import { today } from "@/lib/utils";
 import type { BodyLog } from "@/types/models";
 
@@ -120,5 +120,10 @@ export function useBody() {
     [],
   );
 
-  return { latestLog, previousLog, logs, saveLog, isLoading };
+  const deleteLog = useCallback(async (logId: string) => {
+    await deleteDocument("bodyLogs", logId);
+    setLogs((prev) => prev.filter((l) => l.id !== logId));
+  }, []);
+
+  return { latestLog, previousLog, logs, saveLog, deleteLog, isLoading };
 }
